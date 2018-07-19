@@ -1,0 +1,361 @@
+---
+title: "Health care cost analysis (Medicaid)"
+output: 
+  flexdashboard::flex_dashboard:
+    storyboard: true
+    social: menu
+    source: embed
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(readr)
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+library(ggvis)
+library(tidyr)
+library(broom)
+library(ggpubr)
+library(plotly)
+library(devtools)
+# Restore the object
+data <- readRDS(file = "df_13_17_pop.rds")
+# removing data with State == XX
+data_A <- data %>% filter(State != "XX")
+#changing Product_Name as Product
+names(data_A)[names(data_A) == "Product Name"] <- "Product"
+# summarizing the data
+data_B <- data_A %>% group_by(`State`, `Year`,`Quarter` ) %>% 
+  summarize(tot_amt_reim = sum(`Total Amount Reimbursed`),
+    tot_unt_reim = sum(`Units Reimbursed`),tot_nm_pres = sum(`Number of Prescriptions`),
+    pop = mean(`Population`, na.rm = TRUE)) %>% mutate(unit_cost = tot_amt_reim/tot_unt_reim,
+                      amt_capita = tot_amt_reim/pop)
+data_B_TN <- data_A %>% filter(State == "TN") %>% 
+  group_by(`Year`,`Quarter` )%>% 
+  summarize(tot_amt_reim = sum(`Total Amount Reimbursed`),
+            tot_unt_reim = sum(`Units Reimbursed`),tot_nm_pres = sum(`Number of Prescriptions`),
+            pop = mean(`Population`, na.rm = TRUE)) %>%
+  mutate(unit_cost = tot_amt_reim/tot_unt_reim,amt_capita = tot_amt_reim/pop)
+
+```
+
+### **Total cost of Medicaid over the years for the whole nation and TN specifically.**
+
+```{r, fig.height=8, fig.width=9.5}
+# Q1a: Total cost over the years for country
+Yearly_cost <- data_B %>% group_by(`Year`) %>% summarize(total_cost = sum(`tot_amt_reim`)) 
+# Q1a: Total cost over the years for TN
+Yearly_cost_TN <- data_B_TN %>% group_by(`Year`) %>% summarize(total_cost = sum(`tot_amt_reim`))
+
+blue.bold.italic.16.text <- element_text(face = "bold.italic", color = "blue", size = 16)
+black.bold.italic.16.text <- element_text(face = "bold.italic", color = "black", size = 16)
+black.bold.italic.12.text <- element_text(face = "bold.italic", color = "black", size = 12)
+black.bold.italic.6.text <- element_text(face = "bold.italic", color = "black", size = 6)
+gray.bold.italic.16.text <- element_text(face = "bold.italic", color = "gray4", size = 16)
+red.bold.italic.16.text <- element_text(face = "bold.italic", color = "red4", size = 16)
+# bar plot showing the increase in the cost
+par(mfrow = c(1,2))
+# For whole country
+ggplot(Yearly_cost, aes(reorder( Year, total_cost),                 total_cost)) + geom_col(width = 0.6, fill = "red4") +
+labs(title = "Medicaid cost over the years", x = "Year",
+y = "Total cost (billions)") + theme(title = black.bold.italic.16.text,
+axis.title = black.bold.italic.16.text) + 
+scale_y_continuous(name = "Total cost (billions)",
+breaks = c(10000000000,20000000000,30000000000,
+40000000000,50000000000,60000000000 ),
+labels = c(10,20,30,40,50, 60))
+# For TN
+ggplot(Yearly_cost_TN, aes( Year, total_cost)) +
+geom_col(width=0.6, fill = "navy") +
+labs(title = "Medicaid cost over the years in TN", x = "Year",
+y = "Total cost (billions)") +   theme(title = black.bold.italic.16.text, axis.title = black.bold.italic.16.text) +
+scale_y_continuous(name = "Total cost (billions)",
+breaks = c(100000000,200000000,400000000,600000000,
+800000000,1000000000,1200000000 ),
+labels = c(0.1,0.2,0.4,0.6,0.8,1.0,1.2))
+```
+
+### **Top ten states spending most over the years.**
+
+```{r, fig.height=8, fig.width=9.5}
+#Q2 State wise total cost over the years
+top_states <- data_B %>% group_by(`State`) %>%
+  summarize(total_cost = sum(`tot_amt_reim`)) %>% 
+  arrange(desc(total_cost))
+#Q2a States with highest per capita expenditure
+top_st_per_cap <- data_B %>% group_by(`State`) %>% summarize(total_cost_per_cap = sum(`amt_capita`)) %>% 
+  arrange(desc(total_cost_per_cap)) 
+
+# plotting
+par(mfrow = c(1,2))
+head(top_states, 10) %>% ggplot(aes(reorder( State, total_cost),total_cost)) +
+  geom_col(width=0.5, fill = "red4") +
+  labs(title = "States with highest cost in last five years",
+       x = "State", y = "Total cost (billions)") +
+  theme(title = black.bold.italic.16.text,
+        axis.title = black.bold.italic.16.text) + 
+  scale_y_continuous(name = "Total cost (billions)",
+  breaks = c(5000000000,10000000000,20000000000,
+  30000000000,40000000000),
+  labels = c(0.5,10,20,30, 40))
+# States with highest per capita expenditure
+head(top_st_per_cap, 10) %>% ggplot(aes(reorder( State, total_cost_per_cap),total_cost_per_cap)) +
+geom_col(width=0.5, fill = "navy") + 
+labs(title = "States with highest cost per person",
+x = "State", y = "Cost per person ($)") +
+theme(title = black.bold.italic.16.text, axis.title = black.bold.italic.16.text)
+```
+
+### **States spending less over the years (Healthier State).**
+
+```{r, fig.height=8, fig.width=9.5}
+# Q3a: State wise total cost over the years(Bottom one) 
+tail(top_states, 10) %>% ggplot(aes(reorder( State, total_cost),total_cost)) +
+geom_col(width= 0.5, fill = "darkgreen") +
+labs(title = "States with lowest cost in last five years",
+x = "State", y = "Total cost (billions)") +
+theme(title = black.bold.italic.16.text,
+axis.title = black.bold.italic.16.text) + 
+scale_y_continuous(name = "Total cost (billions)",
+breaks = c( 100000000,200000000,400000000,600000000,
+                800000000,1000000000 ),
+labels = c(0.1 ,0.2,0.4,0.6,0.8,1.0))
+
+# Lowest per capita
+tail(top_st_per_cap, 10) %>% ggplot(aes(reorder( State, total_cost_per_cap),total_cost_per_cap)) +
+geom_col(width = 0.5, fill = "gold4") +
+labs(title = "States with lowest cost per person", x = "State",
+y = "Cost per person ($)") +
+theme(title = black.bold.italic.16.text,
+axis.title = black.bold.italic.16.text)
+```
+
+
+### **Healthier vs unhealthier staes (Classification).**
+
+```{r, fig.height=10, fig.width=16}
+# Q3a: State wise total cost over the years(Bottom one) 
+states <- data_B %>% group_by(`State`) %>%
+  summarize(total_cost = sum(`tot_amt_reim`),
+  total_cost_per_cap = sum(`amt_capita`)) %>% 
+  arrange(desc(total_cost_per_cap)) 
+
+# normalization removing 1st chr variable
+z = states[, -1]
+# calculating mean and sd of each column
+m <- apply(z, 2, mean)
+s <- apply(z, 2, sd)
+z <- scale(z, m, s)
+# calculating eucleaden dist
+distance = dist(z)
+# cluster dendo with complete linkage
+hc_c <- hclust(distance)
+plot(hc_c, labels = states$State, hang = -1, cex = 1.0,
+     main = "Correlation between States",
+     xlab = "States",
+     ylab = "Height") 
+
+```
+
+
+### **Healthier vs unhealthier staes (Clustering).**
+
+```{r, fig.height=10, fig.width=18}
+# k means clustering with normalized values
+kc <- kmeans(z, 5)
+plot(total_cost_per_cap ~ total_cost, states, col = kc$cluster, pch = 19,cex = 1.5,
+     main = "Healthy vs Unhealthy States",
+     xlab = "Total cost (billions)",
+     ylab = "Cost/person", ylim = c(200,1800), xaxt = 'n')
+with(states, text(total_cost_per_cap ~ total_cost,
+                  labels = State, pos = 4, cex = .9))
+axis(side = 1,at = c(150000000,5000000000,10000000000,
+                 20000000000, 30000000000, 40000000000 ),
+     labels = c("0.15","5.0","10","20", "30","40"))
+
+
+```
+
+
+
+
+### **Top five drugs costing the Medicaid.**
+
+```{r, fig.height=8, fig.width=9.5}
+# Q4: Top drugs 
+data_Drg <- data_A %>% group_by(`Product`) %>% 
+summarize(tot_amt_reim = sum(`Total Amount Reimbursed`),
+tot_unt_reim = sum(`Units Reimbursed`),
+tot_nm_pres = sum(`Number of Prescriptions`),
+pop = mean(`Population`, na.rm = TRUE)) %>% 
+mutate(unit_cost = tot_amt_reim/tot_unt_reim) %>% 
+arrange(desc(tot_amt_reim))
+
+top10drugs <- head(data_Drg, 10)
+top5drugs <- head(data_Drg, 5)
+
+dis_prod <- data.frame('Product'=c('HUMIRA - A','METHYLPHEN','INVEGA SUS','TRUVADA', 'HARVONI','ABILIFY', 'ADDERALL X','ADVAIR DIS','SOVALDI 40', 'FLOVENT HF','VYVANSE', 'PROVENTIL','LANTUS',
+'FOCALIN XR','HUMALOG','LYRICA','SEROQUEL X'),
+'Dis'= c('Arthritis','ADHD','Schizophrenia', 'AIDS','HCV', 'Schizophrenia', 'ADHD','Asthma', 'HCV', 'Asthma', 'BED', 'Asthma', 'Diabetes','ADHD','Diabetes', 'Fibromyalgia','Schizophrenia'),
+'gen_cost' = c(1789,0.21,1300,7,1094,1,3,5,1000,10,16,5,20,1,22,5,6))
+
+top10drugs_dis <- merge(top10drugs,dis_prod, by = "Product" )
+top5drugs_dis <- merge(top5drugs,dis_prod, by = "Product" )
+# plotting
+top5drugs_dis %>% ggplot(aes(Product, tot_amt_reim, size = tot_amt_reim)) +
+geom_point(aes(col = Product)) +
+scale_size_continuous(range = c(1,20)) +
+labs(title = "Top five drugs in country costing the taxpayers", x = "Drugs_name",
+y = "Total cost (billions)") +
+theme(title = black.bold.italic.16.text,
+axis.title = black.bold.italic.16.text, axis.text = element_text(size = 10,
+       face = 'bold')) +
+scale_y_continuous(breaks = c(1000000000,3000000000,5000000000,7000000000),
+labels = c(1.0,3.0,5.0,7.0)) + theme(legend.position = "none")
+# TN
+
+data_Drg_TN <- data_A %>% filter (State == 'TN') %>% 
+  group_by(`Product`) %>% 
+  summarize(tot_amt_reim = sum(`Total Amount Reimbursed`),
+            tot_unt_reim = sum(`Units Reimbursed`),
+            tot_nm_pres = sum(`Number of Prescriptions`),
+            pop = mean(`Population`, na.rm = TRUE)) %>% 
+  mutate(unit_cost = tot_amt_reim/tot_unt_reim) %>% 
+  arrange(desc(tot_amt_reim))
+
+top10drugs_TN <- head(data_Drg_TN, 10)
+top5drugs_TN <- head(data_Drg_TN, 5)
+
+top10drugs_TN_dis <- merge(top10drugs_TN,dis_prod, by = "Product" )
+top5drugs_TN_dis <- merge(top5drugs_TN,dis_prod, by = "Product" )
+
+top5drugs_TN_dis %>%
+  ggplot(aes(Product, tot_amt_reim, size = tot_amt_reim)) +
+  geom_point(aes(col = Product)) + scale_size_continuous(range = c(1,20)) +
+  labs(title = "Top five drugs costing the taxpayers in TN", x = "Drugs_name",
+  y = "Total_cost") +
+  theme(title = black.bold.italic.16.text,
+  axis.title = black.bold.italic.16.text, axis.text=element_text(size = 10,
+       face = 'bold')) +
+  scale_y_continuous(name = "Total cost (billions)",
+  breaks = c(50000000,100000000,200000000),
+  labels = c(0.05,0.1,0.2)) + theme(legend.position="none")
+
+
+```
+
+
+### **Diseases resposible for the mess.**
+
+```{r, fig.height=8, fig.width=9.5}
+# getting Total value with generic cost also
+top10drugs_dis_generic <- top10drugs_dis %>% 
+mutate (Tot_gen_cost = tot_unt_reim*gen_cost) %>% 
+select ('Product', 'tot_amt_reim','Dis','Tot_gen_cost')
+
+# plotting data disease wise
+top_diseases <- top10drugs_dis_generic %>%
+  group_by(`Dis`) %>%
+  summarize(total_cost = sum (`tot_amt_reim`),
+  total_gen_cost = sum(`Tot_gen_cost`))
+
+# plotting
+    
+    top_diseases %>% ggplot(aes(Dis, total_cost, size = total_cost)) +
+     geom_point(aes(col = Dis)) +
+     scale_size_continuous(range = c(1,20)) + 
+     labs(title = "Disease prevalence in country", x = "Disease_name",
+          y = "Total cost (billions)") +
+     theme(title = black.bold.italic.16.text,
+    axis.title =   black.bold.italic.16.text,
+    axis.text=element_text(size = 10,face = 'bold')) +
+    scale_y_continuous(name = "Total cost (billions)",
+    breaks = c(2000000000,4000000000,6000000000, 8000000000,10000000000),
+    labels = c(2.0,4.0,6.0, 8.0, 10.0)) + theme(legend.position="none")
+   
+    # getting Total value with generic cost also
+top10drugs_TN_dis_generic <- top10drugs_TN_dis %>% 
+mutate (Tot_gen_cost = tot_unt_reim*gen_cost) %>% 
+select ('Product', 'tot_amt_reim','Dis','Tot_gen_cost')
+
+# plotting data disease wise
+top_TN_diseases <- top10drugs_TN_dis_generic %>%
+  group_by(`Dis`) %>%
+  summarize(total_cost = sum (`tot_amt_reim`),
+  total_gen_cost = sum(`Tot_gen_cost`))
+
+# plotting
+    
+    top_TN_diseases %>% ggplot(aes(Dis, total_cost, size = total_cost)) +
+     geom_point(aes(col = Dis)) +
+     scale_size_continuous(range = c(1,20)) + 
+     labs(title = "Disease prevalence in TN", x = "Disease_name",
+          y = "Total cost (billions)") +
+     theme(title = black.bold.italic.16.text,
+    axis.title =   black.bold.italic.16.text,
+    axis.text=element_text(size = 8,face = 'bold')) +
+    scale_y_continuous(name = "Total cost (billions)",
+    breaks = c(50000000,150000000,250000000,350000000),
+    labels = c( 0.05,0.15,0.25,0.35)) + theme(legend.position="none")
+   
+```
+
+
+### **Prescription vs Generic.**
+
+```{r, fig.height=2, fig.width=4}
+# changing the name of columns in top10drugs_dis_generic
+   names(top10drugs_dis_generic)[names(top10drugs_dis_generic) ==
+                                   "tot_amt_reim"] <- "Pres_cost"
+   names(top10drugs_dis_generic)[names(top10drugs_dis_generic) ==
+                                   "Tot_gen_cost"] <- "Gen_cost"
+  # making single column for pres_cost and gen_cost using gather function
+comp_Prod <- gather(top10drugs_dis_generic, Drug, Cost, c("Pres_cost","Gen_cost"))
+   
+ # Plotting  box plot showing difference
+   ggboxplot(comp_Prod, x = "Drug", y = "Cost", color = "Drug",
+                  palette = "jco", add = "jitter") +
+     stat_compare_means(method = "t.test", label.y = 20, size = 2.5) +
+          labs(title = "Prescription vs Generic", x = "Drugs",
+          y = "Total cost (billions)") +
+     theme(title = black.bold.italic.6.text,
+    axis.title =   black.bold.italic.6.text,
+    axis.text=element_text(size=5, face = 'bold')) +
+     scale_y_continuous(breaks = c(2000000000,4000000000,6000000000,
+                                8000000000,10000000000),
+    labels = c(2.0,4.0,6.0, 8.0, 10.0)) + 
+     theme(legend.position="none")
+
+```
+
+### **What's the prediction for 2018 and 2019.**
+
+```{r, fig.height=1.8, fig.width=4}
+ mod <- lm(total_cost ~ Year, data = Yearly_cost)
+new_data <- data.frame(Year = c(2018, 2019))
+exp_val <- broom::augment(mod, newdata = new_data)
+ggplot(data = Yearly_cost, aes(y = total_cost, x = Year)) +
+  geom_point() + geom_smooth(method = "lm") +
+  geom_point(data = exp_val, aes(y = .fitted), size = 3, color = "red")+
+  labs(title = "Medicaid cost over the years", x = "Year", y = "Total cost (billions)") +
+theme(title = black.bold.italic.6.text, axis.title = black.bold.italic.6.text) +
+scale_x_continuous(name="Year",breaks=c(2013,2014,2015,2016,2017,2018,2019),
+labels = c(2013,2014,2015,2016,2017,2018,2019)) +
+scale_y_continuous(name="Total cost (billions)", breaks = c(10000000000,
+  20000000000,30000000000,40000000000,50000000000,60000000000,80000000000, 100000000000 ),labels = c(10,20,30,40,50, 60, 80,100))
+
+
+
+
+```
+
+
+
+
+
+
+
+
+
+

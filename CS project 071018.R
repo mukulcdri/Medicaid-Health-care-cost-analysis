@@ -3,7 +3,9 @@ library(dplyr)
 library(tidyverse)
 library(ggplot2)
 library(ggvis)
+library(tidyr)
 library(broom)
+library(ggpubr)
 pop_13_17 <- read_csv('data/State_pop_13_17.csv')
 dim(pop_13_17)
 # reading 2017 data
@@ -304,62 +306,25 @@ top_diseases <- top10drugs_dis_generic %>% group_by(`Dis`) %>%
      scale_y_continuous(name = "Total cost (billions)",
                         breaks = c(2000000000,4000000000,6000000000, 8000000000,10000000000),
                         labels = c(2.0,4.0,6.0, 8.0, 10.0)) + theme(legend.position="none")
-
-
-# ggplot(top10drugs_dis_generic, aes(x=Product)) + 
-#   geom_line(aes(y=tot_amt_reim, group = 1, col="tot_amt_reim")) + 
-#   geom_line(aes(y=Tot_gen_cost,group = 1, col="Tot_gen_cost")) + 
-#   scale_y_log10()
-#   labs(title="Time Series of Returns Percentage", 
-#        subtitle="Drawn From Wide Data format", 
-#        caption="Source: Economics", y="Returns %") +  # title and caption
-#   scale_x_date(labels = lbls, breaks = brks) +  # change to monthly ticks and labels
-#   scale_color_manual(name="", 
-#                      values = c("psavert"="#00ba38", "uempmed"="#f8766d")) +  # line color
-#   theme(panel.grid.minor = element_blank())  # turn off minor grid
-
-
-
-
-
-
-
-#=================================================================================
-
-
-
-
-
-
-# merging data
-df_17_ST_Prod_dis <- merge(df_17_ST_Product,dis_prod, by = "Product" )
-df_17_ST_Prod_dis
-# Group by disesase
-df_dis_2017 <- df_17_ST_Prod_dis %>% group_by(`Dis`) %>% summarize(Tot_amt = sum(`tot_amt_reim`)) %>%
-  arrange(desc(Tot_amt)) 
-head(df_dis_2017) %>% ggplot(aes(reorder( Dis, Tot_amt),Tot_amt)) +
-  geom_col(width=.5, fill="red")
-# getting data for TN
-df_17_TN <- df_17_sub1_nona %>% filter(`State` == "TN") %>%
-  group_by( `Product Name`, `Year`) %>%
-  summarize(tot_amt_reim = sum(`Total Amount Reimbursed`),
-            tot_unt_reim = sum(`Units Reimbursed`),
-            tot_nm_pres = sum(`Number of Prescriptions`)) %>%
-  arrange(desc(`tot_amt_reim`))
-head (df_17_TN, 10)
-names(df_17_TN)
-# making disease drug combo
-dis_prod_TN <- data.frame('Product'=c('UNKNOWN','VYVANSE','PROVENTIL','HUMALOG','LATUDA','LYRICA',
-                                   'FOCALIN XR','ADDERALL X', 'METHYLPHEN','LANTUS' ),
-                       'Dis'=c('UNKNOWN','ADHD','Asthma','Diabetes','Schizophrenia','Seizure', 'ADHD', 'ADHD',
-                               'ADHD', 'Diabetes' ))
-
-#changing Product_Name as Product
-names(df_17_TN)[names(df_17_TN) == "Product Name"] <- "Product"
-# merging data
-df_17_TN_dis <- merge(df_17_TN,dis_prod_TN, by = "Product" )
-df_17_TN_dis
-# grouping by disease
-df_17_TN_dis %>% group_by(`Dis`, `Year`) %>% summarize(Tot_amt = sum(`tot_amt_reim`)) %>%
-  arrange(desc(Tot_amt)) %>% ggplot(aes(reorder( Dis, Tot_amt),Tot_amt)) +
-  geom_col(width = .5, fill = "red")
+   
+   
+# changing the name of columns in top10drugs_dis_generic
+   top10drugs_dis_generic
+   names(top10drugs_dis_generic)[names(top10drugs_dis_generic) == "tot_amt_reim"] <- "Pres_cost"
+   names(top10drugs_dis_generic)[names(top10drugs_dis_generic) == "Tot_gen_cost"] <- "Gen_cost"
+  # making single column for pres_cost and gen_cost using gather function
+   comp_Prod <- gather(top10drugs_dis_generic, Drug, Cost, c("Pres_cost","Gen_cost"))
+   comp_Prod
+ # Plotting  box plot showing difference
+   ggboxplot(comp_Prod, x = "Drug", y = "Cost",
+             color = "Drug", palette = "jco",
+             add = "jitter") +
+     stat_compare_means(method = "t.test", label.y = 50) +
+     labs(title = "Prescription vs Generic") +
+     theme(title = gray.bold.italic.16.text, axis.title = black.bold.italic.16.text)+
+     scale_y_continuous(name = "Total cost (billions)", breaks = c(2000000000,4000000000,6000000000,
+    8000000000,10000000000), labels = c(2.0,4.0,6.0, 8.0, 10.0)) +
+     theme(legend.position="none")
+     
+   
+   
