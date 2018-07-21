@@ -40,7 +40,7 @@ data_B_TN <- data_A %>% filter(State == "TN") %>%
 
 ```
 
-### **Total cost of Medicaid over the years for the whole nation and TN specifically.**
+### **Total cost of Medicaid over the years for the whole nation and TN specifically**
 
 ```{r, fig.height=8, fig.width=9.5}
 # Q1a: Total cost over the years for country
@@ -76,7 +76,7 @@ breaks = c(100000000,200000000,400000000,600000000,
 labels = c(0.1,0.2,0.4,0.6,0.8,1.0,1.2))
 ```
 
-### **Top ten states spending most over the years.**
+### **Top ten states spending most over the years**
 
 ```{r, fig.height=8, fig.width=9.5}
 #Q2 State wise total cost over the years
@@ -107,7 +107,7 @@ x = "State", y = "Cost per person ($)") +
 theme(title = black.bold.italic.16.text, axis.title = black.bold.italic.16.text)
 ```
 
-### **States spending less over the years (Healthier State).**
+### **States spending less over the years**
 
 ```{r, fig.height=8, fig.width=9.5}
 # Q3a: State wise total cost over the years(Bottom one) 
@@ -132,7 +132,7 @@ axis.title = black.bold.italic.16.text)
 ```
 
 
-### **Healthier vs unhealthier staes (Classification).**
+### **States grouping (Hierarchical clustering)**
 
 ```{r, fig.height=10, fig.width=16}
 # Q3a: State wise total cost over the years(Bottom one) 
@@ -151,36 +151,39 @@ z <- scale(z, m, s)
 distance = dist(z)
 # cluster dendo with complete linkage
 hc_c <- hclust(distance)
-plot(hc_c, labels = states$State, hang = -1, cex = 1.0,
+plot(hc_c, labels = states$State, hang = -1, cex = 1.5,
      main = "Correlation between States",
      xlab = "States",
-     ylab = "Height") 
+     ylab = "Height", cex.lab=2, cex.axis=2, cex.main=3.0) 
 
 ```
 
 
-### **Healthier vs unhealthier staes (Clustering).**
+### **States grouping (k-means clustering)**
 
 ```{r, fig.height=10, fig.width=18}
 # k means clustering with normalized values
 kc <- kmeans(z, 5)
-plot(total_cost_per_cap ~ total_cost, states, col = kc$cluster, pch = 19,cex = 1.5,
-     main = "Healthy vs Unhealthy States",
+plot(total_cost_per_cap ~ total_cost, states, col = kc$cluster,
+     pch = 19,cex = 1.5,
+     main = "Distribution of States",
      xlab = "Total cost (billions)",
-     ylab = "Cost/person", ylim = c(200,1800), xaxt = 'n')
+     ylab = "Cost/person", ylim = c(200,1800), xaxt = 'n',
+     cex.lab = 2, cex.axis = 2, cex.main = 3.0)
 with(states, text(total_cost_per_cap ~ total_cost,
-                  labels = State, pos = 4, cex = .9))
-axis(side = 1,at = c(150000000,5000000000,10000000000,
-                 20000000000, 30000000000, 40000000000 ),
-     labels = c("0.15","5.0","10","20", "30","40"))
+                  labels = State, pos = 4, cex = .9)) 
+axis(side = 1, at = c(150000000,5000000000,10000000000,
+                 15000000000, 25000000000, 40000000000),
+     labels = c("0.15","5.0","10","15", "25","40"))
 
+     
 
 ```
 
 
 
 
-### **Top five drugs costing the Medicaid.**
+### **Top five drugs costing the Medicaid**
 
 ```{r, fig.height=8, fig.width=9.5}
 # Q4: Top drugs 
@@ -246,7 +249,7 @@ top5drugs_TN_dis %>%
 ```
 
 
-### **Diseases resposible for the mess.**
+### **Diseases resposible for the high cost**
 
 ```{r, fig.height=8, fig.width=9.5}
 # getting Total value with generic cost also
@@ -302,7 +305,7 @@ top_TN_diseases <- top10drugs_TN_dis_generic %>%
 ```
 
 
-### **Prescription vs Generic.**
+### **Prescription vs Generic cost of top ten drugs **
 
 ```{r, fig.height=2, fig.width=4}
 # changing the name of columns in top10drugs_dis_generic
@@ -326,16 +329,18 @@ comp_Prod <- gather(top10drugs_dis_generic, Drug, Cost, c("Pres_cost","Gen_cost"
                                 8000000000,10000000000),
     labels = c(2.0,4.0,6.0, 8.0, 10.0)) + 
      theme(legend.position="none")
+   
+  
 
 ```
 
-### **What's the prediction for 2018 and 2019.**
+### **What's the prediction for 2018 and 2019**
 
 ```{r, fig.height=1.8, fig.width=4}
  mod <- lm(total_cost ~ Year, data = Yearly_cost)
 new_data <- data.frame(Year = c(2018, 2019))
 exp_val <- broom::augment(mod, newdata = new_data)
-ggplot(data = Yearly_cost, aes(y = total_cost, x = Year)) +
+xx <- ggplot(data = Yearly_cost, aes(y = total_cost, x = Year)) +
   geom_point() + geom_smooth(method = "lm") +
   geom_point(data = exp_val, aes(y = .fitted), size = 3, color = "red")+
   labs(title = "Medicaid cost over the years", x = "Year", y = "Total cost (billions)") +
@@ -345,7 +350,7 @@ labels = c(2013,2014,2015,2016,2017,2018,2019)) +
 scale_y_continuous(name="Total cost (billions)", breaks = c(10000000000,
   20000000000,30000000000,40000000000,50000000000,60000000000,80000000000, 100000000000 ),labels = c(10,20,30,40,50, 60, 80,100))
 
-
+ggplotly(xx)
 
 
 ```
