@@ -128,8 +128,11 @@ ggplot(Yearly_cost_TN, aes( Year, total_cost)) +
 # Least square regression for all the states
 ggplot(data = Yearly_cost, aes(y = total_cost, x = Year)) +
   geom_point() + geom_smooth(method = "lm")
+
 # prediction
 mod <- lm(total_cost ~ Year, data = Yearly_cost)
+coefficients(mod)
+summary(mod)
 new_data <- data.frame(Year = c(2018, 2019))
 predict(mod, newdata = new_data)
 # Visualizing new observations
